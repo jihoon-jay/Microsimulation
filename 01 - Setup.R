@@ -22,35 +22,35 @@ v.dwe <- 1 / (1 + d.c) ^ (rep(0:(n.years-1), each=(n.t/n.years)))
 ########## ---- Part B: Transition Probabilities (per cycle) ##########
 # Transition probabilities (per cycle)
 # | 1. Self-Treatment of SSTVI ####
-p_SelfTreat <- 0.7 #0.474 #0.46 #0.857  #0.72 #0.3272#0.63 # Proportion of self-treatment
-p_SSTVI_to_SelfTrt_Death <- p_SelfTreat*0.014683 #0.006817, 0.007604, 0.014683
-p_SSTVI_to_SSTVI <- p_SelfTreat*0.6 # p_SelfTreat*0.71 # Accounts for PWID delaying treatment/not improving on their own (not seeking trt 0.3208)
+p_SelfTreat <- 0.75 #0.474 #0.46 #0.857  #0.72 #0.3272#0.63 # Proportion of self-treatment
+p_SSTVI_to_SelfTrt_Death <- p_SelfTreat*0.011012 #0.011012, 0.018091, 0.001049
+p_SSTVI_to_SSTVI <- p_SelfTreat*0.65 # p_SelfTreat*0.71 # Accounts for PWID delaying treatment/not improving on their own (not seeking trt 0.3208)
 
 # | 2. Transition from SSTVI to Healthcare settings ####
 p_HealthUtilization <- 1-p_SelfTreat
-p_Purulent <- 0.168; p_NonPurulent <- 0.832
-p_SSTVI_to_OP_Purulent <- p_Purulent*p_HealthUtilization*0.8539
-p_SSTVI_to_ED_Purulent <- p_Purulent*p_HealthUtilization*0.1461
-p_SSTVI_to_OP_NonPurulent <- p_NonPurulent*p_HealthUtilization*0.8725
-p_SSTVI_to_ED_NonPurulent <- p_NonPurulent*p_HealthUtilization*0.1275
+p_Purulent <- 0.171; p_NonPurulent <- 0.829
+p_SSTVI_to_OP_Purulent <- p_Purulent*p_HealthUtilization*0.8565
+p_SSTVI_to_ED_Purulent <- p_Purulent*p_HealthUtilization*0.1435
+p_SSTVI_to_OP_NonPurulent <- p_NonPurulent*p_HealthUtilization*0.8720
+p_SSTVI_to_ED_NonPurulent <- p_NonPurulent*p_HealthUtilization*0.1280
 
 # | 3. Purulent SSTVI ####
-p_OP_to_IP_Purulent <- 0.0367; p_OP_to_IPC_Purulent <- 0.0225
+p_OP_to_IP_Purulent <- 0.0362; p_OP_to_IPC_Purulent <- 0.0223
 p_ED_to_IP_Purulent <- 0.0333; p_ED_to_IPC_Purulent <- 0.0530
-p_ED_to_SSTVI_Purulent <- 0.0002 # ED departure against advice (Assume same as non-purulent!)
+p_ED_to_SSTVI_Purulent <- 0.002468 # ED departure against advice (Assume same as non-purulent!)
 p_ED_to_SSTVI_Death_Purulent <- 0.000048 # SSTVI death (Assume same as non-purulent!)
 
 p_IP_to_IP_Purulent <- 0.0124 # Re-admission (small cell count but non-trivial percentage! Assume same IP->IP as non-purulent!)
 p_IP_to_SSTVI_Purulent <- 0.0909 # Hospital departure against advice
-p_IP_to_SSTVI_Death_Purulent <- 0.001722 # SSTVI death
+p_IP_to_SSTVI_Death_Purulent <- 0.000212 # SSTVI death
 
 p_IPC_to_SSTVI_Purulent <- 0.037 # Hospital departure against advice (Assume same as non-purulent!)
 p_IPC_to_SSTVI_Death_Purulent <- 0.000359 # SSTVI death (Assume same as non-purulent!)
 
 # | 4. Non-Purulent SSTVI ####
-p_OP_to_IP_NonPurulent <- 0.0410; p_OP_to_IPC_NonPurulent <- 0.0042
+p_OP_to_IP_NonPurulent <- 0.0411; p_OP_to_IPC_NonPurulent <- 0.0042
 p_ED_to_IP_NonPurulent <- 0.0887; p_ED_to_IPC_NonPurulent <- 0.0198
-p_ED_to_SSTVI_NonPurulent <- 0.0002 # ED departure against advice
+p_ED_to_SSTVI_NonPurulent <- 0.002468 # ED departure against advice
 p_ED_to_SSTVI_Death_NonPurulent <- 0.000048 # SSTVI death
 
 p_IP_to_IP_NonPurulent <- 0.0124 # Re-admission
@@ -74,14 +74,14 @@ c_NSP <- round(c_NSP.2022 / cycle, 2)
 
 # | 2. Healthcare Costs ####
 c_Healthy <- 0 + c_NSP; c_SSTVI <- 0 + c_NSP; c_SelfTrt_Death <- 0
-c_OP_Purulent <- 98.58 + c_NSP; c_ED_Purulent <- 1134.59 + c_NSP
-c_IP_Purulent <- 6045.12 + c_NSP; c_IPC_Purulent <- 42526.20 + c_NSP
-c_OP_NonPurulent <- 90.67 + c_NSP; c_ED_NonPurulent <- 1143.70 + c_NSP
-c_IP_NonPurulent <- 6818.38 + c_NSP; c_IPC_NonPurulent <- 41016.17 + c_NSP
+c_OP_Purulent <- 100.78 + c_NSP; c_ED_Purulent <- 1135.70 + c_NSP
+c_IP_Purulent <- 6022.35 + c_NSP; c_IPC_Purulent <- 42526.40 + c_NSP
+c_OP_NonPurulent <- 93.73 + c_NSP; c_ED_NonPurulent <- 1144.64 + c_NSP
+c_IP_NonPurulent <- 6821.06 + c_NSP; c_IPC_NonPurulent <- 41016.23 + c_NSP
 c_SSTVI_Death <- 0; c_OCM <- 0
 
 ########## ---- Part D: Utility Parameters ##########
-pwid_multiplier <- 0.85 # Otherwise, go with 0.9
+pwid_multiplier <- 0.9 # Otherwise, go with 0.9
 # "Evaluating the cost-effectiveness of needle and syringe programmes in 
 # preventing Hepatitis C transmission in people who inject drugs" (this paper
 # has the PWID multiplier.)
