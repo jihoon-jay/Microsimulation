@@ -11,10 +11,11 @@
 source("~/00 - Functions.R")
 source("~/01 - Setup.R")
 p1 = Sys.time()
-risk_multiplier_prior <- c(3.31, 2.1, 2.1, 3.1, 2.6, 3.7, 3.8, 3.95, 4.84, 1.19, 1.07, 1.14)
-set.seed(10000)
+risk_multiplier_prior <- c(0.42, 0.79, 3.31, 2.1, 2.1, 3.1, 2.6, 3.7, 3.8, 
+                           2.49, 3.95, 4.84, 1.02, 1.16, 1.01)
+set.seed(1000)
 pwid.baseline.with.nsp <- data_generation(n.i = 100000, nsp_status = 1, par_vector = risk_multiplier_posterior)
-set.seed(10000)
+set.seed(1000)
 pwid.baseline.no.nsp <- data_generation(n.i = 100000, nsp_status = 0, par_vector = risk_multiplier_posterior)
 comp.time1 <- Sys.time() - p1; comp.time1 # Approximately 15 seconds
 
@@ -25,10 +26,10 @@ comp.time1 <- Sys.time() - p1; comp.time1 # Approximately 15 seconds
 # Note: The '01 - Setup' contains cost variables with NSP. In a scenario without NSP,
 # costs associated with each health state has to be updated!
 c_Healthy <- 0 + c_NSP; c_SSTVI <- 0 + c_NSP; c_SelfTrt_Death <- 0
-c_OP_Purulent <- 98.58 + c_NSP; c_ED_Purulent <- 1134.59 + c_NSP
-c_IP_Purulent <- 6045.12 + c_NSP; c_IPC_Purulent <- 42526.20 + c_NSP
-c_OP_NonPurulent <- 90.67 + c_NSP; c_ED_NonPurulent <- 1143.70 + c_NSP
-c_IP_NonPurulent <- 6818.38 + c_NSP; c_IPC_NonPurulent <- 41016.17 + c_NSP
+c_OP_Purulent <- 100.78 + c_NSP; c_ED_Purulent <- 1135.70 + c_NSP
+c_IP_Purulent <- 6022.35 + c_NSP; c_IPC_Purulent <- 42526.40 + c_NSP
+c_OP_NonPurulent <- 93.73 + c_NSP; c_ED_NonPurulent <- 1144.64 + c_NSP
+c_IP_NonPurulent <- 6821.06 + c_NSP; c_IPC_NonPurulent <- 41016.23 + c_NSP
 c_SSTVI_Death <- 0; c_OCM <- 0
 
 # | 1. Split data into equal parts ####
@@ -106,10 +107,10 @@ rm(sim_trt_split_list, appended_matrix_list)
 # Note: The '01 - Setup' contains cost variables with NSP. In a scenario without NSP,
 # costs associated with each health state has to be updated!
 c_Healthy <- 0; c_SSTVI <- 0; c_SelfTrt_Death <- 0
-c_OP_Purulent <- 98.58; c_ED_Purulent <- 1134.59
-c_IP_Purulent <- 6045.12; c_IPC_Purulent <- 42526.20
-c_OP_NonPurulent <- 90.67; c_ED_NonPurulent <- 1143.70
-c_IP_NonPurulent <- 6818.38; c_IPC_NonPurulent <- 41016.17
+c_OP_Purulent <- 100.78; c_ED_Purulent <- 1135.70
+c_IP_Purulent <- 6022.35; c_IPC_Purulent <- 42526.40
+c_OP_NonPurulent <- 93.73; c_ED_NonPurulent <- 1144.64
+c_IP_NonPurulent <- 6821.06; c_IPC_NonPurulent <- 41016.23
 c_SSTVI_Death <- 0; c_OCM <- 0
 
 # | 1. Split data into equal parts ####
@@ -190,6 +191,16 @@ for (i in v.n) {
 prev.with.nsp
 comp.time3 <- Sys.time() - p3; comp.time3 # Approximately 8 seconds
 
+transition.with.nsp <- c()
+v.name <- c('Purulent_IP->SSTVI', 'Purulent_IPC->SSTVI',
+            'NonPurulent_IP->SSTVI', 'NonPurulent_IPC->SSTVI',
+            'Purulent_IP->SSTVI', 'NonPurulent_IP->SSTVI',
+            'Purulent_IPC->SSTVI', 'NonPurulent_IPC->SSTVI')
+for (i in v.name) {
+  transition.with.nsp[i] <- length(which(sim_trt$TS[,-1] == i))
+}
+transition.with.nsp
+
 # Group of texts to check
 num_group <- c("Healthy->SSTVI", "SSTVI->SSTVI", 
                "SSTVI->Purulent_OP", "SSTVI->Purulent_ED",
@@ -258,6 +269,12 @@ ip_ir_ci <- prop.test(x = (prev.with.nsp["Purulent_IP"] + prev.with.nsp["NonPuru
                       n = py_total_with_nsp, conf.level = 0.95)$conf.int
 ip_ir_ci*1000
 
+## || c. OP, ED, IP Counts ####
+prev.with.nsp["Purulent_OP"] + prev.with.nsp["NonPurulent_OP"]
+prev.with.nsp["Purulent_ED"] + prev.with.nsp["NonPurulent_ED"]
+prev.with.nsp["Purulent_IP"] + prev.with.nsp["NonPurulent_IP"] + 
+  prev.with.nsp["Purulent_IPC"] + prev.with.nsp["NonPurulent_IPC"]
+
 # | 4. Incidence Rate - Mortality ####
 pop_yr1 <- sum(death_dates_with_nsp$yr1 != 0)
 pop_yr2 <- sum(death_dates_with_nsp$yr2 != 0)
@@ -293,6 +310,25 @@ sstvi.rate.with.nsp <- (sum(sstvi.mort.with.nsp) / sum(sstvi.pop)) * 1000; sstvi
 sstvi.rate.with.nsp.ci <- prop.test(sum(sstvi.mort.with.nsp), sum(sstvi.pop), conf.level = 0.95)$conf.int
 sstvi.rate.with.nsp.ci*1000
 
+# | 5. 95% Confidence Intervals ####
+## SSTVI mortality
+sum(sstvi.mort.with.nsp)
+sstvi.count.with.nsp <- prop.test(sum(sstvi.mort.with.nsp), 100000)
+sstvi.count.with.nsp.ci <- sstvi.count.with.nsp$conf.int; sstvi.count.with.nsp.ci*100000
+
+## Health service utilization
+op.count.with.nsp <- prop.test(sum(prev.with.nsp["Purulent_OP"], 
+                                   prev.with.nsp["NonPurulent_OP"]), 100000)
+op.count.with.nsp.ci <- op.count.with.nsp$conf.int; op.count.with.nsp.ci*100000
+ed.count.with.nsp <- prop.test(sum(prev.with.nsp["Purulent_ED"], 
+                                   prev.with.nsp["NonPurulent_ED"]), 100000)
+ed.count.with.nsp.ci <- ed.count.with.nsp$conf.int; ed.count.with.nsp.ci*100000
+ip.count.with.nsp <- prop.test(sum(prev.with.nsp["Purulent_IP"], 
+                                   prev.with.nsp["NonPurulent_IP"],
+                                   prev.with.nsp["Purulent_IPC"], 
+                                   prev.with.nsp["NonPurulent_IPC"]), 100000)
+ip.count.with.nsp.ci <- ip.count.with.nsp$conf.int; ip.count.with.nsp.ci*100000
+
 ########## ---- Part E: Epidemiology: No NSP ##########
 # | 1. Cumulative Incidence ####
 # Number of people in each state (Use this to obtain prevalence)
@@ -304,6 +340,16 @@ for (i in v.n) {
 }
 prev.no.nsp
 comp.time3 <- Sys.time() - p3; comp.time3
+
+transition.no.nsp <- c()
+v.name <- c('Purulent_IP->SSTVI', 'Purulent_IPC->SSTVI',
+            'NonPurulent_IP->SSTVI', 'NonPurulent_IPC->SSTVI',
+            'Purulent_IP->SSTVI', 'NonPurulent_IP->SSTVI',
+            'Purulent_IPC->SSTVI', 'NonPurulent_IPC->SSTVI')
+for (i in v.name) {
+  transition.no.nsp[i] <- length(which(sim_no_trt$TS[,-1] == i))
+}
+transition.no.nsp
 
 # | 2. Person-Time Calculation ####
 ## Sum up the total number of weeks contributed by each patient
@@ -326,18 +372,24 @@ ir_no_nsp_ub <- ((qchisq(p = N., df = 2 * (tmp[,1] + 1))/2)/tmp[,2])*1000; ir_no
 ## || b. OP, ED, IP combined ####
 op_ir <- ((prev.no.nsp["Purulent_OP"] + prev.no.nsp["NonPurulent_OP"]) / py_total_no_nsp)*1000; op_ir
 op_ir_ci <- prop.test(x = (prev.no.nsp["Purulent_OP"] + prev.no.nsp["NonPurulent_OP"]), 
-                      n = py_total_with_nsp, conf.level = 0.95)$conf.int
+                      n = py_total_no_nsp, conf.level = 0.95)$conf.int
 op_ir_ci*1000
 ed_ir <- ((prev.no.nsp["Purulent_ED"] + prev.no.nsp["NonPurulent_ED"]) / py_total_no_nsp)*1000; ed_ir
 ed_ir_ci <- prop.test(x = (prev.no.nsp["Purulent_ED"] + prev.no.nsp["NonPurulent_ED"]), 
-                      n = py_total_with_nsp, conf.level = 0.95)$conf.int
+                      n = py_total_no_nsp, conf.level = 0.95)$conf.int
 ed_ir_ci*1000
 ip_ir <- ((prev.no.nsp["Purulent_IP"] + prev.no.nsp["NonPurulent_IP"] + 
              prev.no.nsp["Purulent_IPC"] + prev.no.nsp["NonPurulent_IPC"]) / py_total_no_nsp)*1000; ip_ir
 ip_ir_ci <- prop.test(x = (prev.no.nsp["Purulent_IP"] + prev.no.nsp["NonPurulent_IP"]
                            + prev.no.nsp["Purulent_IPC"] + prev.no.nsp["NonPurulent_IPC"]), 
-                      n = py_total_with_nsp, conf.level = 0.95)$conf.int
+                      n = py_total_no_nsp, conf.level = 0.95)$conf.int
 ip_ir_ci*1000
+
+## || c. OP, ED, IP Counts ####
+prev.no.nsp["Purulent_OP"] + prev.no.nsp["NonPurulent_OP"]
+prev.no.nsp["Purulent_ED"] + prev.no.nsp["NonPurulent_ED"]
+prev.no.nsp["Purulent_IP"] + prev.no.nsp["NonPurulent_IP"] + 
+  prev.no.nsp["Purulent_IPC"] + prev.no.nsp["NonPurulent_IPC"]
 
 # | 4. Incidence Rate - Mortality ####
 pop_yr1 <- sum(death_dates_no_nsp$yr1 != 0)
@@ -373,5 +425,45 @@ sstvi.pop <- c(pop_yr1, pop_yr2, pop_yr3, pop_yr4, pop_yr5)
 sstvi.rate.no.nsp <- (sum(sstvi.mort.no.nsp) / sum(sstvi.pop)) * 1000; sstvi.rate.no.nsp
 sstvi.rate.no.nsp.ci <- prop.test(sum(sstvi.mort.no.nsp), sum(sstvi.pop), conf.level = 0.95)$conf.int
 sstvi.rate.no.nsp.ci*1000
+
+# | 5. 95% Confidence Intervals ####
+## SSTVI mortality
+sum(sstvi.mort.no.nsp)
+sstvi.count.no.nsp <- prop.test(sum(sstvi.mort.no.nsp), 100000)
+sstvi.count.no.nsp.ci <- sstvi.count.no.nsp$conf.int; sstvi.count.no.nsp.ci*100000
+
+## Health service utilization
+op.count.no.nsp <- prop.test(sum(prev.no.nsp["Purulent_OP"], 
+                                 prev.no.nsp["NonPurulent_OP"]), 100000)
+op.count.no.nsp.ci <- op.count.no.nsp$conf.int; op.count.no.nsp.ci*100000
+ed.count.no.nsp <- prop.test(sum(prev.no.nsp["Purulent_ED"], 
+                                 prev.no.nsp["NonPurulent_ED"]), 100000)
+ed.count.no.nsp.ci <- ed.count.no.nsp$conf.int; ed.count.no.nsp.ci*100000
+ip.count.no.nsp <- prop.test(sum(prev.no.nsp["Purulent_IP"], 
+                                 prev.no.nsp["NonPurulent_IP"],
+                                 prev.no.nsp["Purulent_IPC"], 
+                                 prev.no.nsp["NonPurulent_IPC"]), 100000)
+ip.count.no.nsp.ci <- ip.count.no.nsp$conf.int; ip.count.no.nsp.ci*100000
+
+
+########## ---- Part F: Epidemiology: Differences in Mortality ##########
+# Calculate the standard errors (SE = (upper - lower) / (2 * 1.96))
+se.count.no.nsp <- (sstvi.count.no.nsp.ci[2] - sstvi.count.no.nsp.ci[1]) / (2 * 1.96)
+se.count.with.nsp <- (sstvi.count.with.nsp.ci[2] - sstvi.count.with.nsp.ci[1]) / (2 * 1.96)
+
+# Calculate the difference of means
+mean.count.diff <- (sum(sstvi.mort.no.nsp) - sum(sstvi.mort.with.nsp))/100000
+mean.count.diff
+mean.count.diff*100000
+
+# Calculate the standard error of the difference
+se.count.diff <- sqrt(se.count.no.nsp^2 + se.count.with.nsp^2)
+
+# Calculate the 95% CI for the difference
+lower_diff <- mean.count.diff - 1.96 * se.count.diff
+upper_diff <- mean.count.diff + 1.96 * se.count.diff
+
+# Output the 95% CI for the difference
+ci_diff <- c(lower_diff, upper_diff); ci_diff*100000
 
 # End of Script
