@@ -53,14 +53,14 @@ data_generation <- cmpfun(function(n.i, nsp_status, par_vector) {
   }
   
   ## Injection frequency in the past month
-  inj.year.dist <- c(0.701, 0.211, 0.088)
-  names(inj.year.dist) <- c("< 5 years", "5-<8 years", "8+ years")
-  v.yrs.idu <- sample(x = 1:3, size = n.i, prob = inj.year.dist, replace = T)
+  inj.year.dist <- c(0.4012, 0.3555, 0.1816, 0.0616)
+  names(inj.year.dist) <- c("< 2 years", "2-<5 years", "5-<8 years", "8+ years")
+  v.yrs.idu <- sample(x = 1:4, size = n.i, prob = inj.year.dist, replace = T)
   v.yrs.idu <- as.numeric(v.yrs.idu)
   
   ## Risk factors for injection behaviour modification
-  rr.sharing.nsp <- 0.42 # RR = 2.38 if no NSP
-  rr.reusing.nsp <- 0.79 # RR = 1.27 if no NSP
+  rr.sharing.nsp <- par_vector[1] # RR = 0.42 if NSP or 2.38 if no NSP
+  rr.reusing.nsp <- par_vector[2] # RR = 0.79 if NSP or 1.27 if no NSP
   # Assume that the number of people who share needles/syringes increases by 2.38-fold
   # in a world without NSP. Similarly, 1.27 times the number of individuals who reuse
   # needles/syringes in a world without NSP. Use 95% CI for sensitivity analysis.
@@ -82,25 +82,26 @@ data_generation <- cmpfun(function(n.i, nsp_status, par_vector) {
   sum(v.reusing)
   
   ## Sex (0 = Female, 1 = Male)
-  sex.dist <- c(0.37, 0.63)
+  sex.dist <- c(0.3795, 0.6205)
   v.sex <- sample(x = 0:1, size = n.i, prob = sex.dist, replace = T)
   v.sex <- as.numeric(v.sex)
   
   ## Age
   # Define the desired percentages
-  percentages <- c(0.156, 0.575, 1)
+  percentages <- c(0.1065, 0.5108, 1)
   # Find the quantiles for the specified percentages
-  quantiles <- qnorm(percentages, mean = 41.83, sd = 13.38)
+  quantiles <- qnorm(percentages, mean = 42.711, sd = 12.822)
   # Generate ages based on the quantiles
-  v.age <- round(rnorm(n.i, 41.83, 13.38), 0)
+  v.age <- round(rnorm(n.i, 42.711, 12.822), 0)
   v.age <- ifelse(v.age < quantiles[1], runif(sum(v.age < quantiles[1]), 18, 24),
                   ifelse(v.age < quantiles[2], runif(sum(v.age < quantiles[2]), 25, 44),
-                         runif(sum(v.age >= quantiles[2]), 45, 69)))
+                         runif(sum(v.age >= quantiles[2]), 45, 65)))
   
   ## Mortality rate
   # Note: The rates for ages 60+ reflect rates combined from the 60-64 and 65-69 
-  # groups. We took this approach due to small cell counts in the latter group 
-  # (i.e., 65-69).
+  # groups. Individuals may start at ages between 60 and 64 but die when they are 
+  # 65+ years old. This may result in small cell counts in the latter group
+  # (i.e., 65-69), and we took this approach to account for this possibility.
   v.mortality <- ifelse(v.age >= 18 & v.age <= 24, 0.0040, 
                         ifelse(v.age >= 25 & v.age <= 29, 0.0068,
                                ifelse(v.age >= 30 & v.age <= 34, 0.0089,
@@ -137,49 +138,50 @@ data_generation <- cmpfun(function(n.i, nsp_status, par_vector) {
   
   ## Add relative risk variables associated with SSTVI into the dataset
   pwid.baseline <- pwid.baseline |>
-    dplyr::mutate(rr_sharing = if_else(v.sharing == 1, par_vector[1], 1),
-                  rr_reusing = if_else(v.reusing == 1, par_vector[2], 1),
+    dplyr::mutate(rr_sharing = if_else(v.sharing == 1, par_vector[3], 1),
+                  rr_reusing = if_else(v.reusing == 1, par_vector[4], 1),
                   rr_inj_freq = case_when(
-                    v.inj.freq %in% c(1, 2) ~ par_vector[3],
-                    v.inj.freq %in% c(3, 4) ~ par_vector[4],
+                    v.inj.freq %in% c(1, 2) ~ par_vector[5],
+                    v.inj.freq %in% c(3, 4) ~ par_vector[6],
                     TRUE ~ 1
                   ),
                   rr_inj_num = case_when(
-                    v.inj.num %in% c(3, 4) ~ par_vector[5],
-                    v.inj.num %in% c(5, 6) ~ par_vector[6],
-                    v.inj.num %in% c(7, 8) ~ par_vector[7],
+                    v.inj.num %in% c(3, 4) ~ par_vector[7],
+                    v.inj.num %in% c(5, 6) ~ par_vector[8],
+                    v.inj.num %in% c(7, 8) ~ par_vector[9],
                     TRUE ~ 1
                   ),
                   rr_inj_year = case_when(
-                    v.yrs.idu == 2 ~ par_vector[8],
-                    v.yrs.idu == 3 ~ par_vector[9],
+                    v.yrs.idu == 2 ~ par_vector[10],
+                    v.yrs.idu == 3 ~ par_vector[11],
+                    v.yrs.idu == 4 ~ par_vector[12],
                     TRUE ~ 1
                   ),
                   rr_age = case_when(
-                    v.age >= 25 & v.age <= 44 ~ par_vector[10],
-                    v.age > 44 ~ par_vector[11],
+                    v.age >= 25 & v.age <= 44 ~ par_vector[13],
+                    v.age > 44 ~ par_vector[14],
                     TRUE ~ 1
                   ),
-                  rr_sex = if_else(v.sex == 1, par_vector[12], 1)
+                  rr_sex = if_else(v.sex == 1, par_vector[15], 1)
     )
   
   ## Analysis Dataset
   pwid.baseline <- pwid.baseline |>
-    mutate(risk.multiplier(data_name = pwid.baseline, prob = 0.001458, prev = 0.0014523))
+    mutate(risk.multiplier(data_name = pwid.baseline, prob = 0.001458, prev = 0.001452))
 })
 
 # | 2. Risk Multiplier Function ####
 # Function to multiply the largest and three smallest in each row
-multiply_one_large_three_small <- function(variables) {
+multiplier_algorithm <- function(variables) {
   sort_desc_order <- sort(variables, decreasing = TRUE)
-  result <- sort_desc_order[1] * sort_desc_order[4] * sort_desc_order[5] * sort_desc_order[6]
+  result <- sort_desc_order[1] * sort_desc_order[4] * sort_desc_order[5] * sort_desc_order[6] * sort_desc_order[7]
   return(result)
 }
 
 risk.multiplier <- cmpfun(function(data_name, prob, prev){
   v_rand <- runif(n=nrow(data_name))
   data_name <- data_name |>
-    dplyr::mutate(rr_multiplier = apply(data_name[, c("rr_sharing", "rr_reusing", "rr_inj_freq", "rr_inj_num", "rr_inj_year", "rr_age")], 1, multiply_one_large_three_small),
+    dplyr::mutate(rr_multiplier = apply(data_name[, c("rr_sharing", "rr_reusing", "rr_inj_freq", "rr_inj_num", "rr_inj_year", "rr_age", "rr_sex")], 1, multiplier_algorithm),
                   prob_infection = prob*rr_multiplier,
                   prevalent = rbinom(nrow(data_name), 1, prev),
                   infection = ifelse(prevalent == 0, as.numeric(v_rand < prob_infection), 1),
@@ -896,83 +898,87 @@ get.lnorm.par <- function(p = c(0.025, 0.5, 0.975), q,
 }
 
 # | 4. PSA Cohort Creation ####
-psa_cohort <- cmpfun(function(n.i, nsp_status) {
-  # Input Parameters
+psa_cohort <- cmpfun(function(n.i, nsp_status, psa_sharing, psa_reusing) {
+  # ID generation
   id <- seq(1:n.i)
   id <- as.numeric(id)
   
-  ## Injection frequency in the past month
+  # Injection frequency in the past month
   inj.freq.dist <- c(0.129, 0.222, 0.156, 0.144, 0.349)
   names(inj.freq.dist) <- c("Never", "Not every week", "1-2 days a week",
                             "3-6 days a week", "Every day")
-  v.inj.freq <- sample(x = 0:4, size = n.i, prob = inj.freq.dist, replace = T)
+  v.inj.freq <- sample(x = 0:4, size = n.i, prob = inj.freq.dist, replace = TRUE)
   v.inj.freq <- as.numeric(v.inj.freq)
   table(v.inj.freq)
   
-  ## Number of injections in the past month
-  inj.num.dist1 <- c(0.543, 0.457); inj.num.dist2 <- c(0.552, 0.448)
-  inj.num.dist3 <- c(0.458, 0.542); inj.num.dist4 <- c(0.570, 0.430)
+  # Number of injections in the past month
+  inj.num.dist1 <- c(0.543, 0.457)
+  inj.num.dist2 <- c(0.552, 0.448)
+  inj.num.dist3 <- c(0.458, 0.542)
+  inj.num.dist4 <- c(0.570, 0.430)
+  
   v.inj.num <- vector("double", length = length(v.inj.freq))
-  for (i in 1:length(v.inj.freq)){
-    v.inj.num[i] <- ifelse(v.inj.freq[i] == 1, sample(1:2, size = sum(v.inj.freq == 1), prob = inj.num.dist1, replace = T),
-                           ifelse(v.inj.freq[i] == 2, sample(3:4, size = sum(v.inj.freq == 2), prob = inj.num.dist2, replace = T),
-                                  ifelse(v.inj.freq[i] == 3, sample(5:6, size = sum(v.inj.freq == 3), prob = inj.num.dist3, replace = T),
-                                         ifelse(v.inj.freq[i] == 4, sample(7:8, size = sum(v.inj.freq == 4), prob = inj.num.dist4, replace = T),
-                                                sample(0, size = sum(v.inj.freq == 0), prob = 1, replace = T))
-                                  )
-                           )
-    )
+  for (i in 1:length(v.inj.freq)) {
+    v.inj.num[i] <- if (v.inj.freq[i] == 1) {
+      sample(1:2, size = 1, prob = inj.num.dist1, replace = TRUE)
+    } else if (v.inj.freq[i] == 2) {
+      sample(3:4, size = 1, prob = inj.num.dist2, replace = TRUE)
+    } else if (v.inj.freq[i] == 3) {
+      sample(5:6, size = 1, prob = inj.num.dist3, replace = TRUE)
+    } else if (v.inj.freq[i] == 4) {
+      sample(7:8, size = 1, prob = inj.num.dist4, replace = TRUE)
+    } else {
+      0
+    }
   }
   
-  ## Injection frequency in the past month
-  inj.year.dist <- c(0.701, 0.2102, 0.088)
-  names(inj.year.dist) <- c("< 5 years", "5-<8 years", "8+ years")
-  v.yrs.idu <- sample(x = 1:3, size = n.i, prob = inj.year.dist, replace = T)
+  # Injection frequency in the past year
+  inj.year.dist <- c(0.4012, 0.3555, 0.1816, 0.0616)
+  names(inj.year.dist) <- c("< 2 years", "2-<5 years", "5-<8 years", "8+ years")
+  v.yrs.idu <- sample(x = 1:4, size = n.i, prob = inj.year.dist, replace = TRUE)
   v.yrs.idu <- as.numeric(v.yrs.idu)
   
-  ## Risk factors for injection behaviour modification
-  rr.sharing.nsp <- 0.42 # RR = 2.38 if no NSP
-  rr.reusing.nsp <- 0.79 # RR = 1.27 if no NSP
-  # Assume that the number of people who share needles/syringes increases by 2.38-fold
-  # in a world without NSP. Similarly, 1.27 times the number of individuals who reuse
-  # needles/syringes in a world without NSP. Use 95% CI for sensitivity analysis.
+  # Risk factors for injection behavior modification
+  rr.sharing.nsp <- psa_sharing # example value, replace with psa_sharing
+  rr.reusing.nsp <- psa_reusing # example value, replace with psa_reusing
+  
+  set.seed(123)  # Set seed for reproducibility
+  sharing_cap <- rnorm(1, mean = 0.5, sd = 0.01)
+  reusing_cap <- rnorm(1, mean = 0.5, sd = 0.01)
   
   if (nsp_status == 1) {
     sharing.prob <- 0.205
     reusing.prob <- 0.297
   } else {
-    sharing.prob <- 0.205 * (1/rr.sharing.nsp)
-    reusing.prob <- 0.297 * (1/rr.reusing.nsp)
+    sharing.prob <- min(0.205 * (1 / rr.sharing.nsp), sharing_cap)
+    reusing.prob <- min(0.297 * (1 / rr.reusing.nsp), reusing_cap)
   }
   
-  ## Percent of PWID sharing needles/syringe with others
-  v.sharing <- ifelse(v.inj.freq != 0, rbinom(n=sum(v.inj.freq >= 1), size=1, p=sharing.prob), 0)
+  # Percent of PWID sharing needles/syringe with others
+  v.sharing <- ifelse(v.inj.freq != 0, rbinom(n = length(v.inj.freq), size = 1, p = sharing.prob), 0)
   sum(v.sharing)
   
-  ## Percent of PWID reusing their own needles/syringes
-  v.reusing <- ifelse(v.inj.freq != 0, rbinom(n=sum(v.inj.freq >= 1), size=1, p=reusing.prob), 0)
+  # Percent of PWID reusing their own needles/syringes
+  v.reusing <- ifelse(v.inj.freq != 0, rbinom(n = length(v.inj.freq), size = 1, p = reusing.prob), 0)
   sum(v.reusing)
   
   ## Sex (0 = Female, 1 = Male)
-  sex.dist <- c(0.37, 0.63)
+  sex.dist <- c(0.3795, 0.6205)
   v.sex <- sample(x = 0:1, size = n.i, prob = sex.dist, replace = T)
   v.sex <- as.numeric(v.sex)
   
   ## Age
   # Define the desired percentages
-  percentages <- c(0.1558, 0.5752, 1)
+  percentages <- c(0.1065, 0.5108, 1)
   # Find the quantiles for the specified percentages
-  quantiles <- qnorm(percentages, mean = 41.83, sd = 13.38)
+  quantiles <- qnorm(percentages, mean = 42.711, sd = 12.822)
   # Generate ages based on the quantiles
-  v.age <- round(rnorm(n.i, 41.83, 13.38), 0)
+  v.age <- round(rnorm(n.i, 42.711, 12.822), 0)
   v.age <- ifelse(v.age < quantiles[1], runif(sum(v.age < quantiles[1]), 18, 24),
                   ifelse(v.age < quantiles[2], runif(sum(v.age < quantiles[2]), 25, 44),
-                         runif(sum(v.age >= quantiles[2]), 45, 69)))
+                         runif(sum(v.age >= quantiles[2]), 45, 65)))
   
   ## Mortality rate
-  # Note: The rates for ages 60+ reflect rates combined from the 60-64 and 65-69 
-  # groups. We took this approach due to small cell counts in the latter group 
-  # (i.e., 65-69).
   v.mortality <- ifelse(v.age >= 18 & v.age <= 24, 0.0040, 
                         ifelse(v.age >= 25 & v.age <= 29, 0.0068,
                                ifelse(v.age >= 30 & v.age <= 34, 0.0089,
@@ -980,7 +986,7 @@ psa_cohort <- cmpfun(function(n.i, nsp_status) {
                                              ifelse(v.age >= 40 & v.age <= 44, 0.0181,
                                                     ifelse(v.age >= 45 & v.age <= 49, 0.0336,
                                                            ifelse(v.age >= 50 & v.age <= 54, 0.0526,
-                                                                  ifelse(v.age >= 55 & v.age <= 59, 0.0703, 0.0622)
+                                                                  ifelse(v.age >= 55 & v.age <= 59, 0.0703, 0.0898)
                                                            )
                                                     )
                                              )
@@ -1002,7 +1008,39 @@ psa_cohort <- cmpfun(function(n.i, nsp_status) {
   pwid.baseline <- data.frame(id, v.inj.freq, v.inj.num, v.yrs.idu, v.sharing, v.reusing, v.sex, v.age, v.ocm, v.nsp)
 })
 
-# | 4. PSA Microsimulation ####
+# | 5. PSA Risk Ratios ####
+mutate_psa <- function(data, params) {
+  data %>%
+    mutate(
+      rr_sharing = if_else(v.sharing == 1, params['rr.sharing.needles'], 1),
+      rr_reusing = if_else(v.reusing == 1, params['rr.reusing.needles'], 1),
+      rr_inj_freq = case_when(
+        v.inj.freq %in% c(1, 2) ~ params['rr.inj.freq.2x'],
+        v.inj.freq %in% c(3, 4) ~ params['rr.inj.freq.7x'],
+        TRUE ~ 1
+      ),
+      rr_inj_num = case_when(
+        v.inj.num %in% c(3, 4) ~ params['rr.num.attempts2'],
+        v.inj.num %in% c(5, 6) ~ params['rr.num.attempts3'],
+        v.inj.num %in% c(7, 8) ~ params['rr.num.attempts4'],
+        TRUE ~ 1
+      ),
+      rr_inj_year = case_when(
+        v.yrs.idu == 2 ~ params['rr.years.idu2to5'],
+        v.yrs.idu == 3 ~ params['rr.years.idu5to8'],
+        v.yrs.idu == 4 ~ params['rr.years.idu8plus'],
+        TRUE ~ 1
+      ),
+      rr_age = case_when(
+        v.age >= 25 & v.age <= 44 ~ params['rr.age25to44'],
+        v.age > 44 ~ params['rr.age44plus'],
+        TRUE ~ 1
+      ),
+      rr_sex = if_else(v.sex == 1, params['rr.male'], 1)
+    )
+}
+
+# | 6. PSA Microsimulation ####
 split_psa <- cmpfun(function(v.M_1, n.i, n.t, n.years, v.n, v.inf.prob, v.ocm, d.c, d.e, nsp, seed = 1) {
   
   v.dwc <- 1 / (1 + d.c) ^ (rep(0:(n.years-1), each=(n.t/n.years)))    # calculate the cost discount weight based on the discount rate d.c 
@@ -1038,7 +1076,7 @@ split_psa <- cmpfun(function(v.M_1, n.i, n.t, n.years, v.n, v.inf.prob, v.ocm, d
   return(results)  # return the results
 })
 
-# | 5. Store PSA Results ####
+# | 7. Store PSA Results ####
 psa_results <- function(num_sub_data, psa_split_list) {
   # num_sub_data: This is the number of sub-datasets per PSA iteration.
   # psa_split_list: This is the list that contains tc_hat and te_hat once the PSA
@@ -1093,14 +1131,14 @@ mod <- cmpfun(function(par_vector) {
   }
   
   ## | c. Injection frequency in the past month ####
-  inj.year.dist <- c(0.701, 0.2102, 0.088)
-  names(inj.year.dist) <- c("< 5 years", "5-<8 years", "8+ years")
-  v.yrs.idu <- sample(x = 1:3, size = n.i, prob = inj.year.dist, replace = T)
+  inj.year.dist <- c(0.4012, 0.3555, 0.1816, 0.0616)
+  names(inj.year.dist) <- c("< 2 years", "2-<5 years", "5-<8 years", "8+ years")
+  v.yrs.idu <- sample(x = 1:4, size = n.i, prob = inj.year.dist, replace = T)
   v.yrs.idu <- as.numeric(v.yrs.idu)
   
   ## | d. Risk factors for injection behaviour modification ####
-  rr.sharing.nsp <- 0.42 # RR = 2.38 if no NSP
-  rr.reusing.nsp <- 0.79 # RR = 1.27 if no NSP
+  rr.sharing.nsp <- par_vector[1] # RR = 0.42 if NSP or 2.38 if no NSP
+  rr.reusing.nsp <- par_vector[2] # RR = 0.79 if NSP or 1.27 if no NSP
   # Assume that the number of people who share needles/syringes increases by 2.38-fold
   # in a world without NSP. Similarly, 1.27 times the number of individuals who reuse
   # needles/syringes in a world without NSP. Use 95% CI for sensitivity analysis.
@@ -1115,25 +1153,22 @@ mod <- cmpfun(function(par_vector) {
   sum(v.reusing)
   
   ## | g. Sex (0 = Female, 1 = Male) ####
-  sex.dist <- c(0.37, 0.63)
+  sex.dist <- c(0.3795, 0.6205)
   v.sex <- sample(x = 0:1, size = n.i, prob = sex.dist, replace = T)
   v.sex <- as.numeric(v.sex)
   
   ## | h. Age ####
   # Define the desired percentages
-  percentages <- c(0.1558, 0.5752, 1)
+  percentages <- c(0.1065, 0.5108, 1)
   # Find the quantiles for the specified percentages
-  quantiles <- qnorm(percentages, mean = 41.83, sd = 13.38)
+  quantiles <- qnorm(percentages, mean = 42.711, sd = 12.822)
   # Generate ages based on the quantiles
-  v.age <- round(rnorm(n.i, 41.83, 13.38), 0)
-  v.age <- ifelse(v.age < quantiles[1], runif(sum(v.age < quantiles[1]), 18, 25),
-                  ifelse(v.age < quantiles[2], runif(sum(v.age < quantiles[2]), 25, 45),
-                         runif(sum(v.age >= quantiles[2]), 45, 69)))
+  v.age <- round(rnorm(n.i, 42.711, 12.822), 0)
+  v.age <- ifelse(v.age < quantiles[1], runif(sum(v.age < quantiles[1]), 18, 24),
+                  ifelse(v.age < quantiles[2], runif(sum(v.age < quantiles[2]), 25, 44),
+                         runif(sum(v.age >= quantiles[2]), 45, 65)))
   
   ## Mortality rate
-  # Note: The rates for ages 60+ reflect rates combined from the 60-64 and 65-69 
-  # groups. We took this approach due to small cell counts in the latter group 
-  # (i.e., 65-69).
   v.mortality <- ifelse(v.age >= 18 & v.age <= 24, 0.0040, 
                         ifelse(v.age >= 25 & v.age <= 29, 0.0068,
                                ifelse(v.age >= 30 & v.age <= 34, 0.0089,
@@ -1141,7 +1176,7 @@ mod <- cmpfun(function(par_vector) {
                                              ifelse(v.age >= 40 & v.age <= 44, 0.0181,
                                                     ifelse(v.age >= 45 & v.age <= 49, 0.0336,
                                                            ifelse(v.age >= 50 & v.age <= 54, 0.0526,
-                                                                  ifelse(v.age >= 55 & v.age <= 59, 0.0703, 0.0622)
+                                                                  ifelse(v.age >= 55 & v.age <= 59, 0.0703, 0.0898)
                                                            )
                                                     )
                                              )
@@ -1160,34 +1195,35 @@ mod <- cmpfun(function(par_vector) {
   
   ## | b. Add relative risk variables associated with SSTVI into the dataset
   pwid.baseline <- pwid.baseline |>
-    dplyr::mutate(rr_sharing = dplyr::if_else(v.sharing == 1, par_vector[1], 1),
-                  rr_reusing = dplyr::if_else(v.reusing == 1, par_vector[2], 1),
-                  rr_inj_freq = dplyr::case_when(
-                    v.inj.freq %in% c(1, 2) ~ par_vector[3],
-                    v.inj.freq %in% c(3, 4) ~ par_vector[4],
+    dplyr::mutate(rr_sharing = if_else(v.sharing == 1, par_vector[3], 1),
+                  rr_reusing = if_else(v.reusing == 1, par_vector[4], 1),
+                  rr_inj_freq = case_when(
+                    v.inj.freq %in% c(1, 2) ~ par_vector[5],
+                    v.inj.freq %in% c(3, 4) ~ par_vector[6],
                     TRUE ~ 1
                   ),
-                  rr_inj_num = dplyr::case_when(
-                    v.inj.num %in% c(7, 8) ~ par_vector[5],
-                    v.inj.freq %in% c(5, 6) ~ par_vector[6],
-                    v.inj.freq %in% c(3, 4) ~ par_vector[7],
+                  rr_inj_num = case_when(
+                    v.inj.num %in% c(3, 4) ~ par_vector[7],
+                    v.inj.num %in% c(5, 6) ~ par_vector[8],
+                    v.inj.num %in% c(7, 8) ~ par_vector[9],
                     TRUE ~ 1
                   ),
-                  rr_inj_year = dplyr::case_when(
-                    v.yrs.idu == 2 ~ par_vector[8],
-                    v.yrs.idu == 3 ~ par_vector[9],
+                  rr_inj_year = case_when(
+                    v.yrs.idu == 2 ~ par_vector[10],
+                    v.yrs.idu == 3 ~ par_vector[11],
+                    v.yrs.idu == 4 ~ par_vector[12],
                     TRUE ~ 1
                   ),
-                  rr_age = dplyr::case_when(
-                    v.age >= 25 & v.age <= 44 ~ par_vector[10],
-                    v.age > 44 ~ par_vector[11],
+                  rr_age = case_when(
+                    v.age >= 25 & v.age <= 44 ~ par_vector[13],
+                    v.age > 44 ~ par_vector[14],
                     TRUE ~ 1
                   ),
-                  rr_sex = if_else(v.sex == 1, par_vector[12], 1)
+                  rr_sex = if_else(v.sex == 1, par_vector[15], 1)
     )
   
   pwid.baseline <- pwid.baseline |>
-    mutate(risk.multiplier(data_name = pwid.baseline, prob = 0.001458, prev = 0.0014523))
+    mutate(risk.multiplier(data_name = pwid.baseline, prob = 0.001458, prev = 0.001452))
   
   v.M_1 <- pwid.baseline$state         # Everyone starts as "healthy" or "SSTVI" 
   v.inf.prob <- pwid.baseline$prob_infection # Probability of SSTVI for each individual
