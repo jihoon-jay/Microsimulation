@@ -49,6 +49,7 @@ risk_param_names <- t_risk$rname
 m_risk_params_psa <- matrix(NA, nrow=n_psa_iter, 
                             ncol=length(risk_param_names),
                             dimnames=list(seq(1:n_psa_iter), risk_param_names))
+set.seed(1000)
 for (param in risk_param_names){
   risk_mult <- get.lnorm.par(p=c(0.025, 0.5, 0.975),
                              q=c(t_risk$value_min[t_risk$rname == param],
@@ -62,6 +63,7 @@ for (param in risk_param_names){
 m_reward_params_psa <- matrix(NA, nrow=n_psa_iter, ncol=length(reward_param_names),
                               dimnames=list(seq(1:n_psa_iter), reward_param_names))
 # Sample cost and QALY parameters
+set.seed(1000)
 for (param in reward_param_names){
   if (isTRUE(t_rewards$distribution[t_rewards$rname == param] == "beta")) {
     m_reward_params_psa[, param] <- rbeta_mean_quantile(t_rewards$value[t_rewards$rname == param], 
@@ -79,81 +81,28 @@ for (param in reward_param_names){
 
 # | 3. Create PSA datasets ####
 # || a. With NSP ####
-set.seed(1234)
-psa.cohort.with.nsp <- psa_cohort(n.i = 10000, nsp_status = 1)
-# psa.cohort.with.nsp <- pwid.baseline.with.nsp[1:10000,] # Create a cohort with 10,000 patients from the original cohort
 psa_list1 <- list()
-for (i in 1:n_psa_iter) {
-  psa_list1[[i]] <- psa.cohort.with.nsp |>
-    dplyr::mutate(rr_sharing = if_else(v.sharing == 1, m_risk_params_psa[i, 'rr.sharing.needles'], 1),
-                  rr_reusing = if_else(v.reusing == 1, m_risk_params_psa[i, 'rr.reusing.needles'], 1),
-                  rr_inj_freq = case_when(
-                    v.inj.freq %in% c(1, 2) ~ m_risk_params_psa[i, 'rr.inj.freq.2x'],
-                    v.inj.freq %in% c(3, 4) ~ m_risk_params_psa[i, 'rr.inj.freq.7x'],
-                    TRUE ~ 1
-                  ),
-                  rr_inj_num = case_when(
-                    v.inj.num %in% c(3, 4) ~ m_risk_params_psa[i, 'rr.num.attempts2'],
-                    v.inj.num %in% c(5, 6) ~ m_risk_params_psa[i, 'rr.num.attempts3'],
-                    v.inj.num %in% c(7, 8) ~ m_risk_params_psa[i, 'rr.num.attempts4'],
-                    TRUE ~ 1
-                  ),
-                  rr_inj_year = case_when(
-                    v.yrs.idu == 2 ~ m_risk_params_psa[i, 'rr.years.idu5to7'],
-                    v.yrs.idu == 3 ~ m_risk_params_psa[i, 'rr.years.idu8to10'],
-                    TRUE ~ 1
-                  ),
-                  rr_age = case_when(
-                    v.age >= 25 & v.age <= 44 ~ m_risk_params_psa[i, 'rr.age25to44'],
-                    v.age > 44 ~ m_risk_params_psa[i, 'rr.age44plus'],
-                    TRUE ~ 1
-                  ),
-                  rr_sex = if_else(v.sex == 1, m_risk_params_psa[i, 'rr.male'], 1)
-    )
-}
-
+psa_list1 <- map(1:n_psa_iter, function(i) {
+  set.seed(i)
+  cohort <- psa_cohort(n.i = 10000, nsp_status = 1, m_risk_params_psa[i, 1], m_risk_params_psa[i, 2])
+  mutate_psa(cohort, m_risk_params_psa[i, ])
+})
 for (i in 1:n_psa_iter) {
   psa_list1[[i]] <- psa_list1[[i]] |>
-    mutate(risk.multiplier(data_name = psa_list1[[i]], prob = 0.001458, prev = 0.0014523))
+    mutate(risk.multiplier(data_name = psa_list1[[i]], prob = 0.001458, prev = 0.001452))
 }
 
 # || b. No NSP ####
-set.seed(1234)
-psa.cohort.no.nsp <- psa_cohort(n.i = 10000, nsp_status = 0)
-# psa.cohort.no.nsp <- pwid.baseline.no.nsp[1:10000,] # Create a cohort with 10,000 patients from the original cohort
+# Run the iterations using purrr::map
 psa_list0 <- list()
-for (i in 1:n_psa_iter) {
-  psa_list0[[i]] <- psa.cohort.no.nsp |>
-    dplyr::mutate(rr_sharing = if_else(v.sharing == 1, m_risk_params_psa[i, 'rr.sharing.needles'], 1),
-                  rr_reusing = if_else(v.reusing == 1, m_risk_params_psa[i, 'rr.reusing.needles'], 1),
-                  rr_inj_freq = case_when(
-                    v.inj.freq %in% c(1, 2) ~ m_risk_params_psa[i, 'rr.inj.freq.2x'],
-                    v.inj.freq %in% c(3, 4) ~ m_risk_params_psa[i, 'rr.inj.freq.7x'],
-                    TRUE ~ 1
-                  ),
-                  rr_inj_num = case_when(
-                    v.inj.num %in% c(3, 4) ~ m_risk_params_psa[i, 'rr.num.attempts2'],
-                    v.inj.num %in% c(5, 6) ~ m_risk_params_psa[i, 'rr.num.attempts3'],
-                    v.inj.num %in% c(7, 8) ~ m_risk_params_psa[i, 'rr.num.attempts4'],
-                    TRUE ~ 1
-                  ),
-                  rr_inj_year = case_when(
-                    v.yrs.idu == 2 ~ m_risk_params_psa[i, 'rr.years.idu5to7'],
-                    v.yrs.idu == 3 ~ m_risk_params_psa[i, 'rr.years.idu8to10'],
-                    TRUE ~ 1
-                  ),
-                  rr_age = case_when(
-                    v.age >= 25 & v.age <= 44 ~ m_risk_params_psa[i, 'rr.age25to44'],
-                    v.age > 44 ~ m_risk_params_psa[i, 'rr.age44plus'],
-                    TRUE ~ 1
-                  ),
-                  rr_sex = if_else(v.sex == 1, m_risk_params_psa[i, 'rr.male'], 1)
-    )
-}
-
+psa_list0 <- map(1:n_psa_iter, function(i) {
+  set.seed(i)
+  cohort <- psa_cohort(n.i = 10000, nsp_status = 0, m_risk_params_psa[i, 1], m_risk_params_psa[i, 2])
+  mutate_psa(cohort, m_risk_params_psa[i, ])
+})
 for (i in 1:n_psa_iter) {
   psa_list0[[i]] <- psa_list0[[i]] |>
-    mutate(risk.multiplier(data_name = psa_list0[[i]], prob = 0.001458, prev = 0.0014523))
+    mutate(risk.multiplier(data_name = psa_list0[[i]], prob = 0.001458, prev = 0.001452))
 }
 
 ########## ---- Part C: Microsimulation Run: With NSP ##########
@@ -166,7 +115,7 @@ n_sub <- nr/n.i # Number of sub-datasets you want in each PSA run
 
 # | 2. Parallel computing ####
 psa1_split_list <- list() # Initialize list
-cl <- parallel::makeCluster(detectCores() - 16) # Detect the number of available cores and create cluster
+cl <- parallel::makeCluster(detectCores() - 12) # Detect the number of available cores and create cluster
 doParallel::registerDoParallel(cl) # Activate cluster for foreach library
 # Run model
 set.seed(1234)
@@ -233,7 +182,7 @@ n_sub <- nr/n.i # Number of sub-datasets you want in each PSA run
 
 # | 2. Parallel computing ####
 psa0_split_list <- list()
-cl <- parallel::makeCluster(detectCores() - 16) # Detect the number of available cores and create cluster
+cl <- parallel::makeCluster(detectCores() - 12) # Detect the number of available cores and create cluster
 doParallel::registerDoParallel(cl) # Activate cluster for foreach library
 # Run model
 set.seed(1234)
@@ -344,6 +293,6 @@ ggplot(CEAC_Data, aes(y = ProbCE)) +
   geom_line(aes(x = wtp_threshold), color = "blue", line=1) +
   geom_point(aes(x = wtp_threshold), color = "black", size=2) +
   ylim(0, 1) +
-  xlab("WTP per QALY") +
+  xlab("Willingness-to-Pay per QALY") +
   ylab("Probability of Cost Effectiveness") +
   ggtitle("Cost Effectiveness Acceptability Curve")
